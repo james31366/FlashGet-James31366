@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox alignment="CENTER" prefHeight="120.0" prefWidth="564.0" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="FlashGet.Controller">
+   <AnchorPane prefHeight="200.0" prefWidth="200.0">
+      <Label layoutX="14.0" layoutY="11.0" prefHeight="18.0" prefWidth="96.0" text="URL to Download" />
+      <TextField fx:id="URLField" layoutX="124.0" layoutY="7.0" prefHeight="26.0" prefWidth="266.0" promptText="Please Enter URL">
+         <opaqueInsets>
+            <Insets />
+         </opaqueInsets>
+      </TextField>
+      <Button fx:id="DownloadButton" layoutX="401.0" layoutY="7.0" mnemonicParsing="false" onAction="#downloadHandle" prefHeight="26.0" prefWidth="70.0" text="Download" />
+      <Button fx:id="ClearButton" layoutX="479.0" layoutY="7.0" mnemonicParsing="false" onAction="#clearHandle" prefHeight="26.0" prefWidth="70.0" text="Clear" />
+   </AnchorPane>
+   <AnchorPane prefHeight="200.0" prefWidth="200.0">
+      <Label fx:id="FileNameLabel" layoutX="14.0" layoutY="11.0" text="File Name" AnchorPane.leftAnchor="14.0" />
+      <ProgressBar fx:id="SingleThreadBar" layoutX="197.0" layoutY="11.0" prefHeight="18.0" prefWidth="269.0" progress="0.0" />
+      <Button fx:id="CancelButton" layoutX="479.0" layoutY="7.0" mnemonicParsing="false" onAction="#cancelHandle" prefWidth="70.0" text="Cancel" />
+   </AnchorPane>
+   <AnchorPane prefHeight="200.0" prefWidth="200.0">
+      <Label layoutX="14.0" layoutY="11.0" text="Threads:" />
+      <HBox alignment="CENTER_LEFT" layoutX="58.0" prefHeight="40.0" prefWidth="452.0">
+         <ProgressBar fx:id="ProgressThread1" prefWidth="100.0" progress="0.0">
+            <HBox.margin>
+               <Insets left="10.0" />
+            </HBox.margin>
+         </ProgressBar>
+         <ProgressBar fx:id="ProgressThread2" prefWidth="100.0" progress="0.0">
+            <HBox.margin>
+               <Insets left="10.0" />
+            </HBox.margin>
+         </ProgressBar>
+         <ProgressBar fx:id="ProgressThread3" prefWidth="100.0" progress="0.0">
+            <HBox.margin>
+               <Insets left="10.0" />
+            </HBox.margin>
+         </ProgressBar>
+         <ProgressBar fx:id="ProgressThread4" prefWidth="100.0" progress="0.0">
+            <HBox.margin>
+               <Insets left="10.0" />
+            </HBox.margin>
+         </ProgressBar>
+      </HBox>
+   </AnchorPane>
+</VBox>

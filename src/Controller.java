@@ -1,7 +1,4 @@
-package flashGet;
-
 import javafx.beans.value.ChangeListener;
-import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.scene.control.*;
 import javafx.stage.FileChooser;
@@ -11,8 +8,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 
 public class Controller {
@@ -29,30 +28,43 @@ public class Controller {
     public ProgressBar ProgressThread4;
     public Label downloadProgressLabel;
     public Label fileSize;
+    public Label fileName;
+    private File outFile;
+    private ExecutorService executorService;
     private DownloadTask[] downloadTasks;
 
+    /**
+     * Print an error message and StackTrace in Terminal.
+     *
+     * @param message is error text to print.
+     * @param e       is exception from programs.
+     */
+    private static void error(String message, Exception e) {
+        e.printStackTrace();
+        System.out.println(message);
+    }
+
     public void downloadHandle(ActionEvent event) {
-        File outFile;
-        URL url;
-        long size;
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Save File");
-        String home = System.getProperty("user.home");
-        fileChooser.setInitialDirectory(new File(home + "/Downloads/"));
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Text Files", "*.txt"),
-                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.gif"),
-                new FileChooser.ExtensionFilter("Audio Files", "*.wav", "*.mp3", "*.aac"),
-                new FileChooser.ExtensionFilter("DOS executable", "*.exe"),
-                new FileChooser.ExtensionFilter("All Files", "*.*"));
-        outFile = fileChooser.showSaveDialog(new Stage());
         try {
-            url = new URL(URLField.getText());
+            URL url = new URL(URLField.getText());
             URLConnection urlConnection = url.openConnection();
-            size = urlConnection.getContentLengthLong();
-            fileSize.setText(String.format("/%d", size));
+            long size = urlConnection.getContentLengthLong();
+            fileSize.setText(String.valueOf(size));
+            String fileNames = URLField.getText().substring(URLField.getText().lastIndexOf('/') + 1);
+            FileChooser fileChooser = getFileChooser(fileNames);
+            Optional<ButtonType> result;
+            do {
+                outFile = fileChooser.showSaveDialog(new Stage());
+                Alert confirmAlert = getAlert(String.format("Your file save to '%s'", outFile.getAbsolutePath()),
+                        Alert.AlertType.CONFIRMATION,
+                        "Confirm Save to",
+                        "Please, check your file path below");
+                result = confirmAlert.showAndWait();
+                if (result.isEmpty()) break;
+            }
+            while (result.get() == ButtonType.CANCEL);
+            fileName.setText(outFile.getName());
             long chunkSize = size / 4;
-            ExecutorService executorService;
             int nThread;
             if (size > 0 && size <= 1000) nThread = 1;
             else nThread = 4;
@@ -60,7 +72,7 @@ public class Controller {
             downloadTasks = new DownloadTask[nThread];
             executorService = Executors.newFixedThreadPool(nThread + 1);
             ChangeListener<String> labelChangeListener = (observableValue, oldValue, newValue) -> downloadProgressLabel.setText(newValue);
-            if (nThread>1) {
+            if (nThread > 1) {
                 for (int i = 0; i < nThread; i++) {
                     long start = chunkSize * i;
                     if (i != nThread - 1) downloadTasks[i] = new DownloadTask(url, outFile, start, chunkSize);
@@ -69,18 +81,24 @@ public class Controller {
                     progressThreads[i].progressProperty().bind(downloadTasks[i].progressProperty());
                 }
                 SingleThreadBar.progressProperty().bind(downloadTasks[0].progressProperty().multiply(0.25)
-                        .add(downloadTasks[1].progressProperty()).multiply(0.25)
-                        .add(downloadTasks[2].progressProperty().multiply(0.25))
-                        .add(downloadTasks[3].progressProperty()).multiply(0.25));
+                        .add(downloadTasks[1].progressProperty().multiply(0.25)
+                                .add(downloadTasks[2].progressProperty().multiply(0.25)
+                                        .add(downloadTasks[3].progressProperty().multiply(0.25)))));
             } else {
-                downloadTasks[0] = new DownloadTask(url, outFile);
+                downloadTasks[0] = new DownloadTask(url, outFile, 0, size);
                 downloadTasks[0].messageProperty().addListener((labelChangeListener));
                 SingleThreadBar.progressProperty().bind(downloadTasks[0].progressProperty());
             }
-            for (int i = 0; i < nThread; i++) {
-                executorService.execute(downloadTasks[i]);
-            }
+
+            //Run Task
+            for (int i = 0; i < nThread; i++) executorService.execute(downloadTasks[i]);
             executorService.shutdown();
+            Alert successAlert = getAlert(String.format("File name: %s is download complete", outFile.getName()), Alert.AlertType.INFORMATION, "Success download", "Your download is complete!");
+            successAlert.showAndWait();
+
+            //After finish download a file.
+            URLField.clear();
+
         } catch (IOException ioException) {
             Alert errorAlert = getAlert("Link is invalid", Alert.AlertType.ERROR, "Invalid Link Error", "Look, an link error dialog");
             errorAlert.showAndWait();
@@ -89,7 +107,27 @@ public class Controller {
             Alert errorAlert = getAlert("Old task does not finished yet", Alert.AlertType.ERROR, "Execution Error", "Look, an execution error dialog");
             errorAlert.showAndWait();
             error("Old task does not finished yet", executionException);
+        } catch (NullPointerException nullPointerException) {
+            Alert errorAlert = getAlert("Please choose destination file path", Alert.AlertType.ERROR, "Save As Error", "Look, an error dialog");
+            errorAlert.showAndWait();
+            error("Please choose destination file path", nullPointerException);
         }
+    }
+
+    private FileChooser getFileChooser(String fileNames) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save As");
+        String home = System.getProperty("user.home");
+        fileChooser.setInitialDirectory(new File(home + "/Downloads/"));
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Text Files", "*.txt"),
+                new FileChooser.ExtensionFilter("Image Files", "*.png", "*.jpg", "*.gif"),
+                new FileChooser.ExtensionFilter("Audio Files", "*.wav", "*.mp3", "*.aac"),
+                new FileChooser.ExtensionFilter("DOS executable", "*.exe"),
+                new FileChooser.ExtensionFilter("Archive Files", "*.rar", "*.zip"),
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
+        fileChooser.setInitialFileName(fileNames);
+        return fileChooser;
     }
 
     public void clearHandle(ActionEvent event) {
@@ -98,25 +136,20 @@ public class Controller {
 
     public void cancelHandle(ActionEvent event) {
         try {
-            for (DownloadTask task : downloadTasks) {
-                task.cancel();
+            if (!executorService.isShutdown()) {
+                for (DownloadTask task : downloadTasks) task.cancel();
+                if (outFile.exists()) {
+                    if (outFile.delete()) {
+                        Alert alertInfo = getAlert(String.format("File name %s already deleted!", outFile.getName()), Alert.AlertType.INFORMATION, "Delete File", "Look, an delete file dialog");
+                        alertInfo.showAndWait();
+                    }
+                }
             }
         } catch (NullPointerException nullPointerException) {
             Alert alertError = getAlert("Please download file before cancel", Alert.AlertType.ERROR, "Cancel Error", "Look, a CancelError dialog");
             alertError.showAndWait();
             error("Please download file before cancel", nullPointerException);
         }
-    }
-
-    /**
-     * Print an error message and exit with exit code 1.
-     *
-     * @param message is error text to print.
-     * @param e is exception from programs.
-     */
-    private static void error(String message, Exception e) {
-        e.printStackTrace();
-        System.out.println(message);
     }
 
     /**

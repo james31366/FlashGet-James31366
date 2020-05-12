@@ -1,5 +1,3 @@
-package flashGet;
-
 import javafx.concurrent.Task;
 
 import java.io.*;
@@ -13,13 +11,6 @@ public class DownloadTask extends Task<Long> {
     private long start;
     private long size;
 
-    public DownloadTask(URL url, File file) {
-        this.url = url;
-        this.outFile = file;
-        this.start = 0;
-        this.size = -1;
-    }
-
     public DownloadTask(URL url, File file, long start, long size) {
         this.url = url;
         this.outFile = file;
@@ -29,13 +20,11 @@ public class DownloadTask extends Task<Long> {
 
     @Override
     protected Long call() throws IOException {
-        Long result = null;
+        long result = 0L;
         final int BUFFERSIZE = 16 * 1024;
         URLConnection conn = url.openConnection();
         String range;
-        if (size > 0) {
-            range = String.format("bytes=%d-%d", start, start + size - 1);
-        } else range = String.format("bytes=%d-", start);
+        range = String.format("bytes=%d-%d", start, start + size - 1);
         conn.setRequestProperty("Range", range);
         InputStream in = conn.getInputStream();
         RandomAccessFile out = new RandomAccessFile(outFile, "rwd");
@@ -44,10 +33,12 @@ public class DownloadTask extends Task<Long> {
         do {
             int n = in.read(buffer);
             if (n < 0) break; // n < 0 means end of the input
-            updateValue(result += n);
-            updateProgress(result, size);
             out.write(buffer, 0, n); // write n bytes from buffer
+            result += n;
+
+            updateProgress(result, size);
         } while (result < size);
+        in.close();
         out.close();
         return result;
     }

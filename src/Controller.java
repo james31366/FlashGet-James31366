@@ -11,9 +11,13 @@ import java.net.URLConnection;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 
+/**
+ * Control UI of FlashGet and logic of applications.
+ *
+ * @author Vichisorn Wejsupakul
+ */
 public class Controller {
 
     public TextField URLField;

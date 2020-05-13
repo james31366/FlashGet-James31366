@@ -4,6 +4,11 @@ import java.io.*;
 import java.net.URL;
 import java.net.URLConnection;
 
+/**
+ * To assign task to download file using multi-thread.
+ *
+ * @author Vichisorn Wejsupakul
+ */
 @SuppressWarnings({"FieldMayBeFinal", "CanBeFinal"})
 public class DownloadTask extends Task<Long> {
     private URL url;
@@ -11,9 +16,17 @@ public class DownloadTask extends Task<Long> {
     private long start;
     private long size;
 
-    public DownloadTask(URL url, File file, long start, long size) {
+    /**
+     * Use to initial a DownloadTask.
+     *
+     * @param url     url that connect website that need to download a file.
+     * @param outFile path that need to write file at.
+     * @param start   to seek where need to start location to download.
+     * @param size    size of file from url.
+     */
+    public DownloadTask(URL url, File outFile, long start, long size) {
         this.url = url;
-        this.outFile = file;
+        this.outFile = outFile;
         this.start = start;
         this.size = size;
     }
@@ -23,7 +36,7 @@ public class DownloadTask extends Task<Long> {
      * And update for text and progress bar.
      *
      * @return result of byte after download.
-     * @throws IOException for 
+     * @throws IOException throw when doesn't find input and output file or link.
      */
     @Override
     protected Long call() throws IOException {

@@ -1,4 +1,4 @@
-#FlashGet - James31366
+#FlashGet-James31366
 
 **FlashGet** multi-threaded file downloader.It uses multiple threads to download parts of a file in parallel. 
 This greatly speeds up downloads (web browsers also use multiple threads when you download a large file).

@@ -78,14 +78,19 @@ public class Controller {
             ProgressBar[] progressThreads = {ProgressThread1, ProgressThread2, ProgressThread3, ProgressThread4};
             downloadTasks = new DownloadTask[nThread];
             executorService = Executors.newFixedThreadPool(nThread + 1);
-            labelChangeListener = (observableValue, oldValue, newValue) -> downloadProgressLabel.setText(String.valueOf(newValue));
+            labelChangeListener = (observableValue, oldValue, newValue) -> {
+                if (oldValue == null) oldValue = 0L;
+                long downloaded = 0L;
+                downloaded += (newValue - oldValue);
+                downloadProgressLabel.setText(String.valueOf(downloaded));
+            };
             manageThread(url, size, chunkSize, nThread, progressThreads);
 
             //Run Task
             for (int i = 0; i < nThread; i++) executorService.execute(downloadTasks[i]);
             executorService.shutdown();
             Alert successAlert = getAlert(String.format("File name: %s is download complete", outFile.getName()), Alert.AlertType.INFORMATION, "Success download", "Your download is complete!");
-            if (executorService.isTerminated()) successAlert.showAndWait();
+            if (!executorService.isShutdown()) successAlert.showAndWait();
 
             //After finish download a file.
             URLField.clear();

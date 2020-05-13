@@ -32,6 +32,7 @@ public class Controller {
     private File outFile;
     private ExecutorService executorService;
     private DownloadTask[] downloadTasks;
+    private ChangeListener<Long> labelChangeListener;
 
     /**
      * Print an error message and StackTrace in Terminal.
@@ -44,6 +45,12 @@ public class Controller {
         System.out.println(message);
     }
 
+    /**
+     * For handle the Event that occur when user press "Download" button.
+     * Download a file from url and using multi-thread for quicker download.
+     *
+     * @param event is a semantic event which indicates that a component-defined action occurred.
+     */
     public void downloadHandle(ActionEvent event) {
         try {
             URL url = new URL(URLField.getText());
@@ -55,7 +62,7 @@ public class Controller {
             Optional<ButtonType> result;
             do {
                 outFile = fileChooser.showSaveDialog(new Stage());
-                Alert confirmAlert = getAlert(String.format("Your file save to '%s'", outFile.getAbsolutePath()),
+                Alert confirmAlert = getAlert(String.format("File Path '%s'", outFile.getAbsolutePath()),
                         Alert.AlertType.CONFIRMATION,
                         "Confirm Save to",
                         "Please, check your file path below");
@@ -71,30 +78,14 @@ public class Controller {
             ProgressBar[] progressThreads = {ProgressThread1, ProgressThread2, ProgressThread3, ProgressThread4};
             downloadTasks = new DownloadTask[nThread];
             executorService = Executors.newFixedThreadPool(nThread + 1);
-            ChangeListener<String> labelChangeListener = (observableValue, oldValue, newValue) -> downloadProgressLabel.setText(newValue);
-            if (nThread > 1) {
-                for (int i = 0; i < nThread; i++) {
-                    long start = chunkSize * i;
-                    if (i != nThread - 1) downloadTasks[i] = new DownloadTask(url, outFile, start, chunkSize);
-                    else downloadTasks[i] = new DownloadTask(url, outFile, start, size - (chunkSize * i));
-                    downloadTasks[i].messageProperty().addListener(labelChangeListener);
-                    progressThreads[i].progressProperty().bind(downloadTasks[i].progressProperty());
-                }
-                SingleThreadBar.progressProperty().bind(downloadTasks[0].progressProperty().multiply(0.25)
-                        .add(downloadTasks[1].progressProperty().multiply(0.25)
-                                .add(downloadTasks[2].progressProperty().multiply(0.25)
-                                        .add(downloadTasks[3].progressProperty().multiply(0.25)))));
-            } else {
-                downloadTasks[0] = new DownloadTask(url, outFile, 0, size);
-                downloadTasks[0].messageProperty().addListener((labelChangeListener));
-                SingleThreadBar.progressProperty().bind(downloadTasks[0].progressProperty());
-            }
+            labelChangeListener = (observableValue, oldValue, newValue) -> downloadProgressLabel.setText(String.valueOf(newValue));
+            manageThread(url, size, chunkSize, nThread, progressThreads);
 
             //Run Task
             for (int i = 0; i < nThread; i++) executorService.execute(downloadTasks[i]);
             executorService.shutdown();
             Alert successAlert = getAlert(String.format("File name: %s is download complete", outFile.getName()), Alert.AlertType.INFORMATION, "Success download", "Your download is complete!");
-            successAlert.showAndWait();
+            if (executorService.isTerminated()) successAlert.showAndWait();
 
             //After finish download a file.
             URLField.clear();
@@ -114,6 +105,76 @@ public class Controller {
         }
     }
 
+    /**
+     * Use to assign task and manage thread bind progress bar and download label
+     * to update and see progress of your download file.
+     *
+     * @param url             url that connect website that need to download a file.
+     * @param size            size of file from url.
+     * @param chunkSize       size that need a thread to download for using multi-thread.
+     * @param nThread         number of thread that need to use.
+     * @param progressThreads An array of progress bar.
+     */
+    private void manageThread(URL url, long size, long chunkSize, int nThread, ProgressBar[] progressThreads) {
+        if (nThread > 1) {
+            for (int i = 0; i < nThread; i++) {
+                long start = chunkSize * i;
+                if (i != nThread - 1) downloadTasks[i] = new DownloadTask(url, outFile, start, chunkSize);
+                else downloadTasks[i] = new DownloadTask(url, outFile, start, size - (chunkSize * i));
+                downloadTasks[i].valueProperty().addListener(labelChangeListener);
+                progressThreads[i].progressProperty().bind(downloadTasks[i].progressProperty());
+            }
+            SingleThreadBar.progressProperty().bind(downloadTasks[0].progressProperty().multiply(0.25)
+                    .add(downloadTasks[1].progressProperty().multiply(0.25)
+                            .add(downloadTasks[2].progressProperty().multiply(0.25)
+                                    .add(downloadTasks[3].progressProperty().multiply(0.25)))));
+        } else {
+            downloadTasks[0] = new DownloadTask(url, outFile, 0, size);
+            downloadTasks[0].valueProperty().addListener((labelChangeListener));
+            SingleThreadBar.progressProperty().bind(downloadTasks[0].progressProperty());
+        }
+    }
+
+    /**
+     * For handle the Event that occur when user press "Clear" button.
+     * Clear URLField text.
+     *
+     * @param event is a semantic event which indicates that a component-defined action occurred.
+     */
+    public void clearHandle(ActionEvent event) {
+        URLField.clear();
+    }
+
+    /**
+     * For handle the Event that occur when user press "Cancel" button.
+     * Cancel all task in thread and delete on loading file.
+     *
+     * @param event is a semantic event which indicates that a component-defined action occurred.
+     */
+    public void cancelHandle(ActionEvent event) {
+        try {
+            if (!executorService.isTerminated()) {
+                for (DownloadTask task : downloadTasks) {
+                    task.cancel();
+                }
+                if (outFile.delete()) {
+                    Alert alertInfo = getAlert(String.format("File name %s already deleted!", outFile.getName()), Alert.AlertType.INFORMATION, "Delete File", "Look, an delete file dialog");
+                    alertInfo.showAndWait();
+                }
+            }
+        } catch (NullPointerException nullPointerException) {
+            Alert alertError = getAlert("Please download file before cancel", Alert.AlertType.ERROR, "Cancel Error", "Look, a CancelError dialog");
+            alertError.showAndWait();
+            error("Please download file before cancel", nullPointerException);
+        }
+    }
+
+    /**
+     * Set up a fileChooser for save a file into computer.
+     *
+     * @param fileNames names of a file that you save.
+     * @return a fully functional save as windows.
+     */
     private FileChooser getFileChooser(String fileNames) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save As");
@@ -128,28 +189,6 @@ public class Controller {
                 new FileChooser.ExtensionFilter("All Files", "*.*"));
         fileChooser.setInitialFileName(fileNames);
         return fileChooser;
-    }
-
-    public void clearHandle(ActionEvent event) {
-        URLField.clear();
-    }
-
-    public void cancelHandle(ActionEvent event) {
-        try {
-            if (!executorService.isShutdown()) {
-                for (DownloadTask task : downloadTasks) task.cancel();
-                if (outFile.exists()) {
-                    if (outFile.delete()) {
-                        Alert alertInfo = getAlert(String.format("File name %s already deleted!", outFile.getName()), Alert.AlertType.INFORMATION, "Delete File", "Look, an delete file dialog");
-                        alertInfo.showAndWait();
-                    }
-                }
-            }
-        } catch (NullPointerException nullPointerException) {
-            Alert alertError = getAlert("Please download file before cancel", Alert.AlertType.ERROR, "Cancel Error", "Look, a CancelError dialog");
-            alertError.showAndWait();
-            error("Please download file before cancel", nullPointerException);
-        }
     }
 
     /**

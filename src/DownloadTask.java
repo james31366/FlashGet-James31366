@@ -18,9 +18,16 @@ public class DownloadTask extends Task<Long> {
         this.size = size;
     }
 
+    /**
+     * Start a task for download files and write into computer.
+     * And update for text and progress bar.
+     *
+     * @return result of byte after download.
+     * @throws IOException for 
+     */
     @Override
     protected Long call() throws IOException {
-        long result = 0L;
+        long downloaded = 0L;
         final int BUFFERSIZE = 16 * 1024;
         URLConnection conn = url.openConnection();
         String range;
@@ -31,15 +38,22 @@ public class DownloadTask extends Task<Long> {
         out.seek(start);
         byte[] buffer = new byte[BUFFERSIZE];
         do {
-            int n = in.read(buffer);
-            if (n < 0) break; // n < 0 means end of the input
-            out.write(buffer, 0, n); // write n bytes from buffer
-            result += n;
-
-            updateProgress(result, size);
-        } while (result < size);
+            int read = in.read(buffer);
+            if (read < 0) break; // read < 0 means end of the input
+            out.write(buffer, 0, read); // write read bytes from buffer
+            downloaded += read;
+            updateValue(downloaded);
+            updateProgress(downloaded, size);
+            if (isCancelled()) {
+                in.close();
+                out.close();
+                updateValue(0L);
+                updateProgress(0L, 0L);
+                break;
+            }
+        } while (downloaded < size);
         in.close();
         out.close();
-        return result;
+        return downloaded;
     }
 }
